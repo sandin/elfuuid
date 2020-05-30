@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <vector>
 #include "elfutils.h"
+#include <string.h>
 
 #ifdef _WIN32
 #ifndef MIN 

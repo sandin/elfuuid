@@ -49,7 +49,7 @@ int main(int argc, char* argv[])
 
 	if (filepath == NULL)
 	{
-		printf("Usage: elfuuid --type=[bugly/breakpad] <file>");
+		printf("Usage: elfuuid --type=[bugly/breakpad] <file>\n");
 		return -1;
 	}
 
