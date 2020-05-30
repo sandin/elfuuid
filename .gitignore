@@ -32,3 +32,4 @@
 *.app
 
 /build
+!/prebuilt/windows-x86_64/elfuuid.exe

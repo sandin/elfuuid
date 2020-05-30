@@ -2,9 +2,20 @@
 
 Read build id from a elf file.
 
-​                 
+​         
 
-**USAGE:**
+**Build:**
+
+```
+mkdir build
+cd build
+cmake ..
+make
+```
+
+​                  
+
+**Usage:**
 
 ```
 > elfuuid libmain.so --type=breakpad
@@ -14,7 +25,7 @@ Read build id from a elf file.
 c3be10b93b84b8fcd0054f901a618692
 ```
 
-​               
+​                
 
 **API:**
 
