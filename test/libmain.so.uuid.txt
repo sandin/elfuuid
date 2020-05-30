@@ -1,0 +1,10 @@
+libmain.so
+
+bugly:	c3be10b93b84b8fcd0054f901a618692
+breakpad: 4BA667FEBEC3B9103B84B8FCD0054F900
+
+> elfuuid libmain.so --type=breakpad
+4BA667FEBEC3B9103B84B8FCD0054F900
+
+> elfuuid libmain.so --type=bugly
+c3be10b93b84b8fcd0054f901a618692
