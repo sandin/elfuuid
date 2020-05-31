@@ -13,6 +13,14 @@ cmake ..
 make
 ```
 
+**Test:**
+
+
+```
+cd test
+go build
+LD_LIBRARY_PATH=../build ./test
+```
 ​                  
 
 **Usage:**
@@ -29,7 +37,11 @@ c3be10b93b84b8fcd0054f901a618692
 
 **API:**
 
+C++:
 ```
+#include "elfutils.h"
+
+
 /**
  * Read Build ID from ELF file
  *
@@ -40,3 +52,17 @@ c3be10b93b84b8fcd0054f901a618692
 std::string FindElfBuildID(const char *elf_filename, uint8_t uuid_type);
 ```
 
+C:
+```
+#include "elfutils_wrap.h"
+
+
+/**
+ * Read Build ID from ELF file
+ *
+ * @param elf_filename elf filepath
+ * @param uuid_type 0:breakpad 1:bugly
+ * @return build_id
+ */
+char* CFindElfBuildID(const char *elf_filename, int uuid_type);
+```

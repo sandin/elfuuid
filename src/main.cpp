@@ -2,10 +2,9 @@
 //
 
 #include "stdafx.h"
-//#include "StatsFileReader.h"
-//#include "Ue4StatsFileReader.h"
-#include "elfutils.h"
 #include <fstream>
+//#include "elfutils.h"
+#include "elfutils_wrap.h"
 
 int main(int argc, char* argv[])
 {
@@ -53,9 +52,10 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	std::string build_id = FindElfBuildID(filepath, build_id_type);
-	printf("%s\n", build_id.c_str());
+	//std::string build_id = FindElfBuildID(filepath, build_id_type);
+	//printf("%s\n", build_id.c_str());
+	char* build_id = CFindElfBuildID(filepath, build_id_type);
+	printf("%s\n", build_id);
+    free(build_id);
 	return 0;
 }
-
-

@@ -121,11 +121,12 @@ std::string FindElfBuildID(const char* elf_filename, uint8_t uuid_type)
 		if (uuid_type == 1)
 		{
 			// bugly style 
-			return BuglyBuildIdNoteIdentifier(note_section, note_size);
+			build_id = BuglyBuildIdNoteIdentifier(note_section, note_size);
 		}
-		else // default: breakpad style
+		else 
 		{
-			return ElfClassBuildIDNoteIdentifier(note_section, note_size) + "0";
+            // breakpad style (default)
+			build_id = ElfClassBuildIDNoteIdentifier(note_section, note_size) + "0";
 		}
 	}
 	if (note_section) 
