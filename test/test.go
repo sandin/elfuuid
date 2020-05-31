@@ -16,7 +16,7 @@ import (
 
 func myassert(condition bool, msg string) {
 	if !condition {
-		fmt.Errorf("assert fails %s", msg)
+		fmt.Errorf("assert fail: %s", msg)
 	}
 }
 
