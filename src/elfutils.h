@@ -32,6 +32,6 @@ typedef struct {
  */
 std::string FindElfBuildID(const char *elf_filename, uint8_t uuid_type);
 
-bool FindElfSection(const char *elf_filename, const char *section_name, const void **section_start, size_t *section_size);
+bool FindElfSection(const char *elf_filename, const char *section_name, const void **section_start, size_t *section_size, size_t max_size);
 
 #endif /* _ELF_UTILS_H_ */

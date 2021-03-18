@@ -70,6 +70,38 @@ static std::string BuglyBuildIdNoteIdentifier(const void *section_start, size_t 
 	return bytes_to_hex_string((const uint8_t*)section_start, section_size, false/* lowercase */); 
 }
 
+static std::string ConvertIdentifierToUUIDString(std::vector<uint8_t> identifier)
+{
+	uint8_t identifier_swapped[kMDGUIDSize] = { 0 };
+	// Endian-ness swap to match dump processor expectation.
+	memcpy(identifier_swapped, &identifier[0], MIN(kMDGUIDSize, identifier.size()));
+
+	uint32_t* data1 = reinterpret_cast<uint32_t*>(identifier_swapped);
+	*data1 = htonl(*data1);
+	uint16_t* data2 = reinterpret_cast<uint16_t*>(identifier_swapped + 4);
+	*data2 = htons(*data2);
+	uint16_t* data3 = reinterpret_cast<uint16_t*>(identifier_swapped + 6);
+	*data3 = htons(*data3);
+
+	return bytes_to_hex_string(identifier_swapped, kMDGUIDSize) + "0";
+}
+
+
+static std::string HashElfTextSection(void *section_start, size_t section_size)
+{
+	std::vector<uint8_t> identifier;
+	identifier.resize(kMDGUIDSize);
+	memset(&identifier[0], 0, kMDGUIDSize);
+	const uint8_t* ptr = reinterpret_cast<const uint8_t*>(section_start);
+	const uint8_t* ptr_end = ptr + section_size;
+	while (ptr < ptr_end) {
+		for (unsigned i = 0; i < kMDGUIDSize; i++)
+			identifier[i] ^= ptr[i];
+		ptr += kMDGUIDSize;
+	}
+	return ConvertIdentifierToUUIDString(identifier);
+}
+
 static std::string ElfClassBuildIDNoteIdentifier(const void *section_start, size_t section_size)
 {
 	std::vector<uint8_t> identifier;
@@ -96,48 +128,50 @@ static std::string ElfClassBuildIDNoteIdentifier(const void *section_start, size
 		build_id,
 		build_id + note_header->n_descsz);
 
-	uint8_t identifier_swapped[kMDGUIDSize] = { 0 };
-	// Endian-ness swap to match dump processor expectation.
-	memcpy(identifier_swapped, &identifier[0], MIN(kMDGUIDSize, identifier.size()) );
-
-	uint32_t* data1 = reinterpret_cast<uint32_t*>(identifier_swapped);
-	*data1 = htonl(*data1);
-	uint16_t* data2 = reinterpret_cast<uint16_t*>(identifier_swapped + 4);
-	*data2 = htons(*data2);
-	uint16_t* data3 = reinterpret_cast<uint16_t*>(identifier_swapped + 6);
-	*data3 = htons(*data3);
-
-	return bytes_to_hex_string(identifier_swapped, kMDGUIDSize);
+	return ConvertIdentifierToUUIDString(identifier);
 }
 
 
 std::string FindElfBuildID(const char* elf_filename, uint8_t uuid_type)
 {
 	std::string build_id = ""; // TODO
-	void* note_section;
-	size_t note_size;
-	if (FindElfSection(elf_filename, ".note.gnu.build-id", (const void**)&note_section, &note_size))
+	void* section_base;
+	size_t section_size;
+	if (FindElfSection(elf_filename, ".note.gnu.build-id", (const void**)&section_base, &section_size, -1))
 	{
 		if (uuid_type == 1)
 		{
 			// bugly style 
-			build_id = BuglyBuildIdNoteIdentifier(note_section, note_size);
+			build_id = BuglyBuildIdNoteIdentifier(section_base, section_size);
 		}
 		else 
 		{
             // breakpad style (default)
-			build_id = ElfClassBuildIDNoteIdentifier(note_section, note_size) + "0";
+			build_id = ElfClassBuildIDNoteIdentifier(section_base, section_size);
+		}
+	} 
+	else if (FindElfSection(elf_filename, ".text", (const void**)&section_base, &section_size, 4096))
+	{
+		if (uuid_type == 1)
+		{
+			// bugly style 
+			build_id = HashElfTextSection(section_base, section_size); // TODO:
+		}
+		else
+		{
+			// breakpad style (default)
+			build_id = HashElfTextSection(section_base, section_size);
 		}
 	}
-	if (note_section) 
+	if (section_base)
 	{
-		free(note_section);
+		free(section_base);
 	}
 	return build_id;
 }
 
 template<typename T_Elf_Ehdr, typename T_Elf_Shdr>
-static bool FindElfClassSection(std::ifstream* f, const char* section_name, const void **section_start, size_t *section_size) 
+static bool FindElfClassSection(std::ifstream* f, const char* target_section_name, const void **section_start, size_t *section_size, size_t max_size) 
 {
 	T_Elf_Ehdr ehdr;
 	f->read((char*)&ehdr, sizeof(T_Elf_Ehdr));
@@ -167,12 +201,13 @@ static bool FindElfClassSection(std::ifstream* f, const char* section_name, cons
 		f->read((char*)&section, sizeof(T_Elf_Shdr));
 		const char* section_name = (char*)names + section.sh_name;
 		//printf("[Section] index=%-3d name=%-20s type=%-2d sh_offset=%-8d sh_size=%-8d\n", i, section_name, section.sh_type, section.sh_offset, section.sh_size);
-		if (strcmp(section_name, ".note.gnu.build-id") == 0) {
-			unsigned char* buffer = (unsigned char*)malloc(section.sh_size);
+		if (strcmp(section_name, target_section_name) == 0) {
+			size_t buffer_size = max_size != -1 ? MIN(section.sh_size, max_size) : section.sh_size;
+			unsigned char* buffer = (unsigned char*)malloc(buffer_size);
 			f->seekg(section.sh_offset, std::ios::beg);
-			f->read((char*)buffer, section.sh_size);
+			f->read((char*)buffer, buffer_size);
 			*section_start = buffer;
-			*section_size = section.sh_size;
+			*section_size = buffer_size;
 			found = true;
 			break;
 		}
@@ -182,7 +217,7 @@ static bool FindElfClassSection(std::ifstream* f, const char* section_name, cons
 	return found;
 }
 
-bool FindElfSection(const char *elf_filename, const char* section_name, const void **section_start, size_t *section_size) 
+bool FindElfSection(const char *elf_filename, const char* section_name, const void **section_start, size_t *section_size, size_t max_size) 
 {
 	bool result = false;
 
@@ -197,11 +232,11 @@ bool FindElfSection(const char *elf_filename, const char* section_name, const vo
 	f.seekg(0);
 	if (e_ident[EI_CLASS] == ELFCLASS32)
 	{
-		result = FindElfClassSection<Elf32_Ehdr, Elf32_Shdr>(&f, section_name, section_start, section_size);
+		result = FindElfClassSection<Elf32_Ehdr, Elf32_Shdr>(&f, section_name, section_start, section_size, max_size);
 	}
 	else
 	{
-		result = FindElfClassSection<Elf64_Ehdr, Elf64_Shdr>(&f, section_name, section_start, section_size);
+		result = FindElfClassSection<Elf64_Ehdr, Elf64_Shdr>(&f, section_name, section_start, section_size, max_size);
 	}
 	f.close();
 	return result;
