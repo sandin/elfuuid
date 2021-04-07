@@ -57,17 +57,19 @@ static std::string bytes_to_hex_string(const uint8_t* bytes, size_t count, bool 
 	return result;
 }
 
-static std::string BuglyBuildIdNoteIdentifier(const void *section_start, size_t section_size)
+static std::string BuglyBuildIdNoteIdentifier(const void *section_start, size_t section_size, int max_length = -1)
 {
-	int build_id_length = 16; 
 	//printf("bugly build id, section_size=%d, build_id_length=%d\n", section_size, build_id_length);
-	if (section_size > build_id_length) {
+	if (max_length != -1 && section_size > max_length) {
 		const void* section_end = reinterpret_cast<const char*>(section_start) + section_size;
-		const void* string_start = reinterpret_cast<const char*>(section_start) + (section_size - build_id_length);
+		const void* string_start = reinterpret_cast<const char*>(section_start) + (section_size - max_length);
 		//printf("bugly build id, section_start=%x, section_end=%x, string_start=%x\n", section_start, section_end, string_start);
-		return bytes_to_hex_string((const uint8_t*)string_start, build_id_length, false/* lowercase */);
+		return bytes_to_hex_string((const uint8_t*)string_start, max_length, false/* lowercase */);
 	}
-	return bytes_to_hex_string((const uint8_t*)section_start, section_size, false/* lowercase */); 
+	else 
+	{
+		return bytes_to_hex_string((const uint8_t*)section_start, section_size, false/* lowercase */); 
+	}
 }
 
 static std::string ConvertIdentifierToUUIDString(std::vector<uint8_t> identifier)
@@ -86,6 +88,11 @@ static std::string ConvertIdentifierToUUIDString(std::vector<uint8_t> identifier
 	return bytes_to_hex_string(identifier_swapped, kMDGUIDSize) + "0";
 }
 
+static std::string ConvertIdentifierToHexString(std::vector<uint8_t> identifier)
+{
+	return bytes_to_hex_string(&identifier[0], identifier.size() * sizeof(uint8_t), false/* lowercase */);
+}
+
 
 static std::string HashElfTextSection(void *section_start, size_t section_size)
 {
@@ -102,38 +109,65 @@ static std::string HashElfTextSection(void *section_start, size_t section_size)
 	return ConvertIdentifierToUUIDString(identifier);
 }
 
-static std::string ElfClassBuildIDNoteIdentifier(const void *section_start, size_t section_size)
+
+
+template<typename T_Elf_Nhdr>
+static std::vector<uint8_t> GetBuildID(const void *section_start, size_t section_size)
 {
 	std::vector<uint8_t> identifier;
 
 	const void* section_end = reinterpret_cast<const char*>(section_start) + section_size;
-	const Elf32_Nhdr* note_header = reinterpret_cast<const Elf32_Nhdr*>(section_start);
+	const T_Elf_Nhdr* note_header = reinterpret_cast<const T_Elf_Nhdr*>(section_start);
 	while (reinterpret_cast<const void *>(note_header) < section_end) {
 		if (note_header->n_type == NT_GNU_BUILD_ID)
 			break;
-		note_header = reinterpret_cast<const Elf32_Nhdr*>(
-			reinterpret_cast<const char*>(note_header) + sizeof(Elf32_Nhdr) +
+		note_header = reinterpret_cast<const T_Elf_Nhdr*>(
+			reinterpret_cast<const char*>(note_header) + sizeof(T_Elf_Nhdr) +
 			NOTE_PADDING(note_header->n_namesz) +
 			NOTE_PADDING(note_header->n_descsz));
 	}
 	if (reinterpret_cast<const void *>(note_header) >= section_end ||
 		note_header->n_descsz == 0) {
-		return ""; // TODO
+		return identifier; // TODO
 	}
 
 	const uint8_t* build_id = reinterpret_cast<const uint8_t*>(note_header) +
-		sizeof(Elf32_Nhdr) + NOTE_PADDING(note_header->n_namesz);
+		sizeof(T_Elf_Nhdr) + NOTE_PADDING(note_header->n_namesz);
 
 	identifier.insert(identifier.end(),
 		build_id,
 		build_id + note_header->n_descsz);
 
-	return ConvertIdentifierToUUIDString(identifier);
+	return identifier;
+}
+
+template<typename T_Elf_Nhdr>
+static std::string ElfClassBuildIDNoteIdentifier(const void *section_start, size_t section_size)
+{
+	return ConvertIdentifierToUUIDString(GetBuildID<T_Elf_Nhdr>(section_start, section_size));
+}
+
+template<typename T_Elf_Nhdr>
+static std::string ElfClassBuildIDNoteIdentifier2(const void *section_start, size_t section_size)
+{
+	return ConvertIdentifierToHexString(GetBuildID<T_Elf_Nhdr>(section_start, section_size));
+}
+
+
+static int GetElfArch(const char *elf_filename)
+{
+	std::ifstream f(elf_filename, std::ios::binary);
+	unsigned char e_ident[EI_NIDENT];
+	f.read((char*)&e_ident, EI_NIDENT);
+	f.close();
+	return e_ident[EI_CLASS];
 }
 
 
 std::string FindElfBuildID(const char* elf_filename, uint8_t uuid_type)
 {
+	int arch = GetElfArch(elf_filename);
+
 	std::string build_id = ""; // TODO
 	void* section_base;
 	size_t section_size;
@@ -142,20 +176,40 @@ std::string FindElfBuildID(const char* elf_filename, uint8_t uuid_type)
 		if (uuid_type == 1)
 		{
 			// bugly style 
-			build_id = BuglyBuildIdNoteIdentifier(section_base, section_size);
+			build_id = BuglyBuildIdNoteIdentifier(section_base, section_size, 16);
+		}
+		if (uuid_type == 2) 
+		{
+			// origin build id
+			if (arch == ELFCLASS32) {
+				build_id = ElfClassBuildIDNoteIdentifier2<Elf32_Nhdr>(section_base, section_size);
+			}
+			else
+			{
+				build_id = ElfClassBuildIDNoteIdentifier2<Elf64_Nhdr>(section_base, section_size);
+			}
 		}
 		else 
 		{
             // breakpad style (default)
-			build_id = ElfClassBuildIDNoteIdentifier(section_base, section_size);
+			if (arch == ELFCLASS32) {
+				build_id = ElfClassBuildIDNoteIdentifier<Elf32_Nhdr>(section_base, section_size);
+			}
+			else 
+			{
+				build_id = ElfClassBuildIDNoteIdentifier<Elf64_Nhdr>(section_base, section_size);
+			}
 		}
 	} 
 	else if (FindElfSection(elf_filename, ".text", (const void**)&section_base, &section_size, 4096))
 	{
 		if (uuid_type == 1)
 		{
-			// bugly style 
-			build_id = HashElfTextSection(section_base, section_size); // TODO:
+			build_id = "";
+		}
+		else if (uuid_type == 2) 
+		{
+			build_id = "";
 		}
 		else
 		{
@@ -216,6 +270,8 @@ static bool FindElfClassSection(std::ifstream* f, const char* target_section_nam
 	free(names);
 	return found;
 }
+
+
 
 bool FindElfSection(const char *elf_filename, const char* section_name, const void **section_start, size_t *section_size, size_t max_size) 
 {
