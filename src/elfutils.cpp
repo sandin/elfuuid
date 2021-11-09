@@ -256,7 +256,7 @@ static bool FindElfClassSection(std::ifstream* f, const char* target_section_nam
 		const char* section_name = (char*)names + section.sh_name;
 		//printf("[Section] index=%-3d name=%-20s type=%-2d sh_offset=%-8d sh_size=%-8d\n", i, section_name, section.sh_type, section.sh_offset, section.sh_size);
 		if (strcmp(section_name, target_section_name) == 0) {
-			size_t buffer_size = max_size != -1 ? MIN(section.sh_size, max_size) : section.sh_size;
+			size_t buffer_size = max_size != -1 ? MIN((size_t)section.sh_size, max_size) : section.sh_size;
 			unsigned char* buffer = (unsigned char*)malloc(buffer_size);
 			f->seekg(section.sh_offset, std::ios::beg);
 			f->read((char*)buffer, buffer_size);
