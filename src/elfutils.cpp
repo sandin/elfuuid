@@ -57,6 +57,16 @@ static std::string bytes_to_hex_string(const uint8_t* bytes, size_t count, bool 
 	return result;
 }
 
+std::vector<uint8_t> hex_string_to_bytes(std::string hex_string) {
+	std::vector<uint8_t> bytes;
+	for (unsigned int i = 0; i < hex_string.length(); i += 2) {
+    	std::string byteString = hex_string.substr(i, 2);
+    	uint8_t byte = (uint8_t) strtol(byteString.c_str(), NULL, 16);
+    	bytes.push_back(byte);
+  	}
+	return bytes;
+}
+
 static std::string BuglyBuildIdNoteIdentifier(const void *section_start, size_t section_size, int max_length = -1)
 {
 	//printf("bugly build id, section_size=%d, build_id_length=%d\n", section_size, build_id_length);
@@ -72,7 +82,7 @@ static std::string BuglyBuildIdNoteIdentifier(const void *section_start, size_t 
 	}
 }
 
-static std::string ConvertIdentifierToUUIDString(std::vector<uint8_t> identifier)
+std::string ConvertIdentifierToUUIDString(std::vector<uint8_t> identifier)
 {
 	uint8_t identifier_swapped[kMDGUIDSize] = { 0 };
 	// Endian-ness swap to match dump processor expectation.

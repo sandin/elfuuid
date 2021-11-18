@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdio.h>
+#include <string>
 
 #include "elfutils_wrap.h"
 #include "elfutils.h"
@@ -12,3 +13,11 @@ char* CFindElfBuildID(const char *elf_filename, int uuid_type) {
     strcpy(build_id_str, build_id);
     return build_id_str;
 }
+
+
+std::string ConvertBuildIdToBreakpadUUID(std::string build_id) {
+    std::vector<uint8_t> bytes = hex_string_to_bytes(build_id);
+    return ConvertIdentifierToUUIDString(bytes);
+}
+
+

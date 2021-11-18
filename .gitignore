@@ -34,3 +34,5 @@
 /build
 /build64
 !/prebuilt/windows-x86_64/elfuuid.exe
+
+.vscode/

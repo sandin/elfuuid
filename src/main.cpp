@@ -3,6 +3,7 @@
 
 #include "stdafx.h"
 #include <fstream>
+#include <string>
 //#include "elfutils.h"
 #include "elfutils_wrap.h"
 
@@ -32,12 +33,16 @@ int main(int argc, char* argv[])
 				{
 					build_id_type = 2;
 				}
+				else if (arg == "buildId2breakpad")
+				{
+					build_id_type = 3;
+				}
 				else
 				{
 					printf("Error: unknown type %s", arg.c_str());
 					exit(-1);
 				}
-			}
+			} 
 			else 
 			{
 				printf("Error: unknown option %s", arg.c_str());
@@ -52,8 +57,16 @@ int main(int argc, char* argv[])
 
 	if (filepath == NULL)
 	{
-		printf("Usage: elfuuid --type=[bugly/breakpad/buildId] <file>\n");
+		printf("Usage: elfuuid --type=[bugly/breakpad/buildId/buildId2breakpad] <file>\n");
 		return -1;
+	}
+
+	if (build_id_type == 3)
+	{
+		std::string buildId = filepath;
+		std::string breakpad_uuid = ConvertBuildIdToBreakpadUUID(buildId);
+		printf("%s\n", breakpad_uuid.c_str());
+		return 0;
 	}
 
 	//std::string build_id = FindElfBuildID(filepath, build_id_type);

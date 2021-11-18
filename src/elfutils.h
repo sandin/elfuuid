@@ -29,6 +29,7 @@ typedef struct {
 #endif
 
 #include <string>
+#include <vector>
 
 /**
  * Read Build ID from ELF file
@@ -40,5 +41,8 @@ typedef struct {
 std::string FindElfBuildID(const char *elf_filename, uint8_t uuid_type);
 
 bool FindElfSection(const char *elf_filename, const char *section_name, const void **section_start, size_t *section_size, size_t max_size);
+
+std::string ConvertIdentifierToUUIDString(std::vector<uint8_t> identifier);
+std::vector<uint8_t> hex_string_to_bytes(std::string hex_string);
 
 #endif /* _ELF_UTILS_H_ */
