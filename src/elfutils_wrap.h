@@ -24,6 +24,15 @@ char* CFindElfBuildID(const char *elf_filename, int uuid_type);
  */
 std::string ConvertBuildIdToBreakpadUUID(std::string build_id); 
 
+/**
+ * Convert Macho UUID into Breakpad UUID
+ * 
+ * @param build_id build id
+ * @return breakpad uuid
+ */
+std::string ConvertMachoIdToBreakpadUUID(std::string build_id); 
+
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

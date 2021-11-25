@@ -37,6 +37,10 @@ int main(int argc, char* argv[])
 				{
 					build_id_type = 3;
 				}
+				else if (arg == "machoId2breakpad")
+				{
+					build_id_type = 4;
+				}
 				else
 				{
 					printf("Error: unknown type %s", arg.c_str());
@@ -57,7 +61,7 @@ int main(int argc, char* argv[])
 
 	if (filepath == NULL)
 	{
-		printf("Usage: elfuuid --type=[bugly/breakpad/buildId/buildId2breakpad] <file>\n");
+		printf("Usage: elfuuid --type=[bugly/breakpad/buildId/buildId2breakpad/machoId2breakpad] <file>\n");
 		return -1;
 	}
 
@@ -67,7 +71,15 @@ int main(int argc, char* argv[])
 		std::string breakpad_uuid = ConvertBuildIdToBreakpadUUID(buildId);
 		printf("%s\n", breakpad_uuid.c_str());
 		return 0;
+	} else if (build_id_type == 4) 
+	{
+		std::string buildId = filepath;
+		std::string breakpad_uuid = ConvertMachoIdToBreakpadUUID(buildId);
+		printf("%s\n", breakpad_uuid.c_str());
+		return 0;
 	}
+
+
 
 	//std::string build_id = FindElfBuildID(filepath, build_id_type);
 	//printf("%s\n", build_id.c_str());
