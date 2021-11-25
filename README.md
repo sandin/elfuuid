@@ -50,6 +50,12 @@ Convert Build ID to Breakpad UUID:
 > elfuuid --type=buildId2breakpad d8d07629fc319d0972c10b36619e08df5f68dd10
 2976D0D831FC099D72C10B36619E08DF0
 ```
+
+Convert Mach-O UUID to Breakpad UUID:
+```
+> elfuuid --type=machoId2breakpad 567dc4978a7b3006a6e4b333a73d8ac3
+567DC4978A7B3006A6E4B333A73D8AC30
+```
 ​                
 
 **API:**
